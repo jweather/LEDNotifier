@@ -23,7 +23,6 @@ namespace HelloPWM {
 
         static bool connected = false;
 
-        static int discoflash = 0;
         public static void Main() {
             pwm = new PWM[]{new PWM(Pins.GPIO_PIN_D5),
                 new PWM(Pins.GPIO_PIN_D6),
@@ -38,27 +37,22 @@ namespace HelloPWM {
                 while (pause)
                     Thread.Sleep(50);
 
-                // flash red every 9 cycles if notifier is not connected
-                bool flashR = false;
-                if (!connected && fade[R] == 100) {
-                    discoflash++;
-                    flashR = (discoflash % 9) == 0;
-                }
-
                 // fade up/down from 80-100% or color cycle
+                uint min = 80, max = 100;
+                if (!connected) {
+                    min = 1; max = 1;
+                } else if (cycle) {
+                    min = 0; max = 100;
+                }
                 for (int i = 0; i < 3; i++) {
                     if (up[i]) {
-                        fade[i] += 1;
-                        if (fade[i] == 100) up[i] = false;
+                        if (fade[i] < max) fade[i] += 1;
+                        if (fade[i] >= max) up[i] = false;
                     } else {
-                        fade[i] -= 1;
-                        // cycle fades all the way down to 0, normal fades down to 80%
-                        if (fade[i] == (cycle ? 0 : 80)) up[i] = true;
+                        if (fade[i] > min) fade[i] -= 1;
+                        if (fade[i] <= min) up[i] = true;
                     }
                     uint value = fade[i];
-                    if (flashR) {
-                        value = (uint)((i == R) ? 100 : 50);
-                    }
                     pwm[i].SetPulse(100, value);
                 }
 
@@ -66,7 +60,7 @@ namespace HelloPWM {
                 led.Write(up[0]);
 
                 // color cycle = fast ramping, normal = slow ramp
-                Thread.Sleep(delay / (cycle ? 3 : 1));
+                Thread.Sleep(delay / (cycle ? 4 : 1));
             }
         }
         private static void listener() {
